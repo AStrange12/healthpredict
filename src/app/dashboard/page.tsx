@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -18,6 +17,19 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, where, doc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+
+function calculateAge(dobString: string) {
+  if (!dobString) return null;
+  const dob = new Date(dobString);
+  const today = new Date();
+  if (isNaN(dob.getTime())) return null;
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age;
+}
 
 export default function DoctorDashboard() {
   const { user, isUserLoading } = useUser();
@@ -68,12 +80,14 @@ export default function DoctorDashboard() {
     try {
       // 1. Create Patient Document
       const patientRef = doc(collection(db, 'patients'));
+      const age = calculateAge(dob);
       const patientData = {
         id: patientRef.id,
         firstName,
         lastName,
         name: `${firstName} ${lastName}`,
         dateOfBirth: dob,
+        age: age,
         gender,
         patientIdCode: patientIdCode || `P-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
         admissionDate: new Date().toISOString(),
@@ -291,8 +305,7 @@ export default function DoctorDashboard() {
 }
 
 function PatientCard({ patient }: { patient: Patient }) {
-  // In a real app, predictions would be fetched from a subcollection
-  // For this card, we'll assume a summary or leave it pending
+  const age = patient.age || calculateAge(patient.dateOfBirth);
   
   return (
     <Card className="hover:shadow-lg transition-all border-none shadow-sm overflow-hidden group">
@@ -321,7 +334,7 @@ function PatientCard({ patient }: { patient: Patient }) {
             </div>
             <div className="flex items-center gap-2">
               <Activity size={14} />
-              Age: {patient.age || 'N/A'}
+              Age: {age || 'N/A'}
             </div>
           </div>
           

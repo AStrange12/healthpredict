@@ -1,4 +1,3 @@
-
 "use client";
 
 import { use, useEffect, useState } from 'react';
@@ -19,6 +18,19 @@ import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@
 import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { doc, collection, addDoc, query, orderBy, setDoc } from 'firebase/firestore';
+
+function calculateAge(dobString: string) {
+  if (!dobString) return null;
+  const dob = new Date(dobString);
+  const today = new Date();
+  if (isNaN(dob.getTime())) return null;
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age;
+}
 
 export default function PatientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -141,6 +153,7 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
   if (!patient) return <div className="p-10 text-center">Patient record not found.</div>;
 
   const latestPrediction = predictions?.[0];
+  const age = patient.age || calculateAge(patient.dateOfBirth);
 
   return (
     <div className="min-h-screen bg-background">
@@ -173,7 +186,7 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 rounded-lg bg-muted/50">
                     <Label className="text-[10px] uppercase text-muted-foreground">Age</Label>
-                    <div className="font-semibold">{patient.age || 'N/A'}</div>
+                    <div className="font-semibold">{age || 'N/A'}</div>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/50">
                     <Label className="text-[10px] uppercase text-muted-foreground">Risk</Label>
