@@ -1,0 +1,448 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application, primarily medical professionals like doctors or hospital staff, who have secure login access to the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "username": {
+          "type": "string",
+          "description": "A unique username for login purposes."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address, used for communication or account recovery.",
+          "format": "email"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "The full name of the user (e.g., Doctor's full name)."
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user within the system (e.g., 'Doctor', 'Admin', 'MedicalStaff')."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email",
+        "fullName",
+        "role",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Patient": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Patient",
+      "type": "object",
+      "description": "Stores demographic and administrative information for a patient.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Patient entity."
+        },
+        "patientIdCode": {
+          "type": "string",
+          "description": "A unique alphanumeric code or medical record number for the patient, used for public search functionality."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The patient's first name."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The patient's last name."
+        },
+        "dateOfBirth": {
+          "type": "string",
+          "description": "The patient's date of birth.",
+          "format": "date"
+        },
+        "gender": {
+          "type": "string",
+          "description": "The patient's gender (e.g., 'Male', 'Female', 'Other')."
+        },
+        "admissionDate": {
+          "type": "string",
+          "description": "The date and time of the patient's admission to the hospital.",
+          "format": "date-time"
+        },
+        "dischargeDate": {
+          "type": "string",
+          "description": "The date and time of the patient's discharge from the hospital (if applicable).",
+          "format": "date-time"
+        },
+        "addedByUserId": {
+          "type": "string",
+          "description": "Reference to the User who added this patient record. (Relationship: User 1:N Patient)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the patient record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the patient record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "patientIdCode",
+        "firstName",
+        "lastName",
+        "dateOfBirth",
+        "gender",
+        "admissionDate",
+        "addedByUserId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VitalsRecord": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VitalsRecord",
+      "type": "object",
+      "description": "Captures a single instance of time-series vital signs for a patient.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the VitalsRecord entity."
+        },
+        "patientId": {
+          "type": "string",
+          "description": "Reference to the Patient this vital record belongs to. (Relationship: Patient 1:N VitalsRecord)"
+        },
+        "recordedAt": {
+          "type": "string",
+          "description": "The date and time when the vital signs were recorded.",
+          "format": "date-time"
+        },
+        "heartRate": {
+          "type": "number",
+          "description": "The patient's heart rate in beats per minute (bpm)."
+        },
+        "bloodPressureSystolic": {
+          "type": "number",
+          "description": "The patient's systolic blood pressure in mmHg."
+        },
+        "bloodPressureDiastolic": {
+          "type": "number",
+          "description": "The patient's diastolic blood pressure in mmHg."
+        },
+        "spo2": {
+          "type": "number",
+          "description": "The patient's oxygen saturation level (SpO2) as a percentage."
+        },
+        "respiratoryRate": {
+          "type": "number",
+          "description": "The patient's respiratory rate in breaths per minute (bpm)."
+        },
+        "temperature": {
+          "type": "number",
+          "description": "The patient's body temperature in degrees Celsius or Fahrenheit."
+        },
+        "addedByUserId": {
+          "type": "string",
+          "description": "Reference to the User who added this vital signs record. (Relationship: User 1:N VitalsRecord)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the vitals record was created in the system.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the vitals record was last updated in the system.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "patientId",
+        "recordedAt",
+        "heartRate",
+        "bloodPressureSystolic",
+        "bloodPressureDiastolic",
+        "spo2",
+        "respiratoryRate",
+        "temperature",
+        "addedByUserId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ClinicalNote": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ClinicalNote",
+      "type": "object",
+      "description": "Stores unstructured clinical notes recorded for a patient.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ClinicalNote entity."
+        },
+        "patientId": {
+          "type": "string",
+          "description": "Reference to the Patient this clinical note belongs to. (Relationship: Patient 1:N ClinicalNote)"
+        },
+        "recordedAt": {
+          "type": "string",
+          "description": "The date and time when the clinical note was recorded.",
+          "format": "date-time"
+        },
+        "noteContent": {
+          "type": "string",
+          "description": "The full text content of the clinical note."
+        },
+        "noteType": {
+          "type": "string",
+          "description": "The type or category of the clinical note (e.g., 'Physician Progress Note', 'Nurse Note', 'Admission Summary')."
+        },
+        "addedByUserId": {
+          "type": "string",
+          "description": "Reference to the User who added this clinical note. (Relationship: User 1:N ClinicalNote)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the clinical note was created in the system.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the clinical note was last updated in the system.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "patientId",
+        "recordedAt",
+        "noteContent",
+        "noteType",
+        "addedByUserId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Prediction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Prediction",
+      "type": "object",
+      "description": "Stores the results of a multimodal clinical deterioration prediction for a specific patient at a specific point in time.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Prediction entity."
+        },
+        "patientId": {
+          "type": "string",
+          "description": "Reference to the Patient for whom this prediction was made. (Relationship: Patient 1:N Prediction)"
+        },
+        "predictedAt": {
+          "type": "string",
+          "description": "The date and time when the prediction was generated.",
+          "format": "date-time"
+        },
+        "icuTransferRiskScore": {
+          "type": "number",
+          "description": "The risk score (0-1) for ICU transfer."
+        },
+        "cardiacArrestRiskScore": {
+          "type": "number",
+          "description": "The risk score (0-1) for cardiac arrest."
+        },
+        "mortalityRiskScore": {
+          "type": "number",
+          "description": "The risk score (0-1) for mortality."
+        },
+        "icuTransferRiskLevel": {
+          "type": "string",
+          "description": "The categorical risk level (e.g., 'Low', 'Medium', 'High') for ICU transfer."
+        },
+        "cardiacArrestRiskLevel": {
+          "type": "string",
+          "description": "The categorical risk level (e.g., 'Low', 'Medium', 'High') for cardiac arrest."
+        },
+        "mortalityRiskLevel": {
+          "type": "string",
+          "description": "The categorical risk level (e.g., 'Low', 'Medium', 'High') for mortality."
+        },
+        "explanation": {
+          "type": "string",
+          "description": "A doctor-friendly textual explanation for the prediction results."
+        },
+        "featureImportance": {
+          "type": "string",
+          "description": "A serialized JSON string or object containing details about feature importance for the prediction."
+        },
+        "triggeredByUserId": {
+          "type": "string",
+          "description": "Reference to the User who triggered this prediction. (Relationship: User 1:N Prediction)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the prediction record was created in the system.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the prediction record was last updated in the system.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "patientId",
+        "predictedAt",
+        "icuTransferRiskScore",
+        "cardiacArrestRiskScore",
+        "mortalityRiskScore",
+        "icuTransferRiskLevel",
+        "cardiacArrestRiskLevel",
+        "mortalityRiskLevel",
+        "explanation",
+        "triggeredByUserId",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles, primarily medical professionals, with secure login access. The 'userId' directly corresponds to `request.auth.uid`. Includes 'role' for high-level authorization (DBAC).",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, matching Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/patients/{patientId}",
+        "definition": {
+          "entityName": "Patient",
+          "schema": {
+            "$ref": "#/backend/entities/Patient"
+          },
+          "description": "Stores core demographic and administrative information for each patient. Includes 'addedByUserId' for the creating user and a 'members' map (e.g., {uid1: 'doctor', uid2: 'nurse'}) for explicit collaborative access control, critical for Authorization Independence of subcollections.",
+          "params": [
+            {
+              "name": "patientId",
+              "description": "The unique identifier for a specific patient."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/patients/{patientId}/vitalsRecords/{vitalsRecordId}",
+        "definition": {
+          "entityName": "VitalsRecord",
+          "schema": {
+            "$ref": "#/backend/entities/VitalsRecord"
+          },
+          "description": "Captures time-series vital signs for a patient. Includes denormalized 'patientOwnerId' (from parent Patient's 'addedByUserId') and 'patientMembers' map (from parent Patient's 'members') for Authorization Independence. Also includes 'addedByUserId' for the user who recorded this specific vital.",
+          "params": [
+            {
+              "name": "patientId",
+              "description": "The unique identifier of the parent patient."
+            },
+            {
+              "name": "vitalsRecordId",
+              "description": "The unique identifier for a specific vital signs record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/patients/{patientId}/clinicalNotes/{clinicalNoteId}",
+        "definition": {
+          "entityName": "ClinicalNote",
+          "schema": {
+            "$ref": "#/backend/entities/ClinicalNote"
+          },
+          "description": "Stores unstructured clinical notes for a patient. Includes denormalized 'patientOwnerId' (from parent Patient's 'addedByUserId') and 'patientMembers' map (from parent Patient's 'members') for Authorization Independence. Also includes 'addedByUserId' for the user who added this specific clinical note.",
+          "params": [
+            {
+              "name": "patientId",
+              "description": "The unique identifier of the parent patient."
+            },
+            {
+              "name": "clinicalNoteId",
+              "description": "The unique identifier for a specific clinical note."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/patients/{patientId}/predictions/{predictionId}",
+        "definition": {
+          "entityName": "Prediction",
+          "schema": {
+            "$ref": "#/backend/entities/Prediction"
+          },
+          "description": "Stores the results of multimodal clinical deterioration predictions. Includes denormalized 'patientOwnerId' (from parent Patient's 'addedByUserId'), 'patientMembers' map (from parent Patient's 'members'), and 'patientIdCode' (from parent Patient's 'patientIdCode') for Authorization Independence and public search functionality.",
+          "params": [
+            {
+              "name": "patientId",
+              "description": "The unique identifier of the parent patient."
+            },
+            {
+              "name": "predictionId",
+              "description": "The unique identifier for a specific prediction record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/public_prediction_summaries/{publicPredictionSummaryId}",
+        "definition": {
+          "entityName": "PublicPredictionSummary",
+          "schema": {
+            "$ref": "#/backend/entities/Prediction"
+          },
+          "description": "A denormalized, publicly accessible summary of prediction results, strictly for the Public Patient Dashboard. Contains only non-sensitive fields from the 'Prediction' entity, including 'patientIdCode' for public search queries. This provides a clear, separate security posture for public read access (QAPs).",
+          "params": [
+            {
+              "name": "publicPredictionSummaryId",
+              "description": "The unique identifier for a specific public prediction summary, typically matching the corresponding predictionId."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure is designed to support a secure, scalable, and debuggable Multimodal Clinical Deterioration Prediction System, prioritizing authorization independence and enabling efficient queries (QAPs). \n\n1.  **Authorization Independence & Denormalization:**\n    *   For collaborative patient data, the `/patients/{patientId}` collection serves as the central hub. Each `Patient` document will include an `addedByUserId` (the creator) and a `members` map (e.g., `{uid1: \"doctor\", uid2: \"nurse\"}`) to explicitly define all authorized users for that patient's record. This map is crucial for shared access within a hospital context.\n    *   Documents within subcollections (`/patients/{patientId}/vitalsRecords/{vitalsRecordId}`, `/patients/{patientId}/clinicalNotes/{clinicalNoteId}`, `/patients/{patientId}/predictions/{predictionId}`) will **denormalize** these authorization fields. Specifically, each `VitalsRecord`, `ClinicalNote`, and `Prediction` document will contain `patientOwnerId` (copied from the `Patient` document's `addedByUserId`) and `patientMembers` (copied from the `Patient` document's `members` map). This eliminates the need for `get()` calls in security rules, allowing rules to directly evaluate `request.auth.uid in resource.data.patientMembers` for any document, thereby enabling atomic operations and making rule logic simpler and more robust.\n    *   The `Prediction` document additionally denormalizes `patientIdCode` to facilitate direct querying for the public dashboard without needing to access the parent `Patient` document. \n\n2.  **QAPs (Rules are not Filters) & Structural Segregation:**\n    *   **User Profiles (`/users/{userId}`):** This collection is path-based, ensuring each user (`userId` matching `request.auth.uid`) has direct and exclusive access to their own profile, which contains their `role` for higher-level administrative access checks.\n    *   **Doctor/Hospital Dashboard Data (`/patients/{patientId}` and its subcollections):** The `/patients` collection stores patient records, each with its `members` map. The subcollections for `vitalsRecords`, `clinicalNotes`, and `predictions` are nested under their respective `patientId`. The denormalized `patientMembers` map within each subcollection document allows `list` operations (e.g., `db.collection('patients').doc(patientId).collection('vitalsRecords').where('patientMembers.' + request.auth.uid, '==', 'doctor')`) to be efficient and secure. The `request.auth.uid` is used directly in the query and rule evaluation, ensuring QAPs.\n    *   **Public Patient Dashboard (`/public_prediction_summaries/{publicPredictionSummaryId}`):** To address the read-only public access requirement for prediction results, a dedicated top-level collection `/public_prediction_summaries` is introduced. This collection contains a *denormalized, publicly safe subset* of prediction data, including `patientIdCode`. This structural segregation ensures that public access is granted only to non-sensitive, pre-selected data. It enables direct, efficient queries by `patientIdCode` without exposing any other sensitive patient information or requiring complex cross-collection `get()` operations, perfectly adhering to QAP principles for public interfaces."
+  }
+}
