@@ -1,0 +1,18 @@
+# **App Name**: HealthPredict AI
+
+## Core Features:
+
+- Patient Record Management (for Doctors): Allows authenticated medical staff to securely add new patients, manually input time-series vitals (HR, BP, SpO2, RR, Temp) and clinical notes, and manage existing patient profiles, ensuring data isolation per user.
+- Multimodal Prediction Engine: Utilizes lightweight ML models (LSTM/GRU for time-series, simple embeddings for text) to integrate structured vitals and clinical notes, generating real-time predictions for ICU transfer, cardiac arrest, and mortality risk (0-1 score).
+- Explainable AI Insights: Generates clear, doctor-friendly explanations for predicted risk levels, including feature importance and textual interpretations, aiding clinical decision-making. The system provides a tool for interpreting the predictions.
+- Secure Doctor Dashboard: A dedicated, secure interface for medical professionals with login/signup functionality to view and trigger patient predictions, browse historical patient data, and efficiently manage patient records while ensuring data privacy and access control.
+- Public Patient-Facing Dashboard: A read-only public interface where patients or authorized individuals can search for a patient by ID or name to view their current risk score, aggregated prediction results (ICU Transfer, Cardiac Arrest, Mortality), and a basic, high-level explanation of the risk.
+- Persistent Data Storage & Retrieval: Leverages PostgreSQL or MongoDB for robust and scalable storage of user accounts, complete patient records (structured vitals and unstructured clinical notes), and prediction history, designed to meet the strict data handling requirements for healthcare applications.
+
+## Style Guidelines:
+
+- Color scheme: Light, reflecting a clean and professional clinical environment. Primary: Deep, trustworthy blue (`#1E58A8`) for action items and branding, evoking confidence and stability. Background: Very light, subtle bluish-grey (`#F3F6FA`), providing a serene backdrop for data display. Accent: Moderate violet (`#784EDB`), used sparingly for highlighting critical information or interactive elements, offering visual contrast and elegance.
+- Headline and body text font: 'Inter' (sans-serif) for its modern, objective, and highly readable characteristics, suitable for conveying critical clinical data clearly. Code font: 'Source Code Pro' (monospace) for displaying any technical output or model-related explanations, ensuring readability of code snippets.
+- Clean, modern, and simple line icons to represent actions (e.g., 'add patient', 'trigger prediction'), status indicators (e.g., 'risk levels', 'alerts'), and navigation, ensuring intuitive understanding within a clinical context.
+- A structured, dashboard-centric layout emphasizing clear data organization, efficient information retrieval, and intuitive workflows for medical professionals. Utilizes a responsive grid system to optimize display across devices, ensuring that critical patient information and prediction results are always prominently and legibly presented.
+- Subtle and functional animations to provide feedback on user actions (e.g., button clicks, form submissions) and to indicate loading states during data processing or prediction generation. Transitions for dashboard navigation or data updates will be smooth and unobtrusive, enhancing usability without causing distractions.
