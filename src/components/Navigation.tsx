@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { Stethoscope, User, LayoutDashboard, Search, LogOut } from 'lucide-react';
+import { Stethoscope, User, LayoutDashboard, Search, LogOut, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -41,6 +41,12 @@ export function Navigation() {
                     <Button variant="ghost" className="flex items-center gap-2">
                       <LayoutDashboard size={16} />
                       Dashboard
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard/profile">
+                    <Button variant="ghost" className="flex items-center gap-2">
+                      <UserCircle size={16} />
+                      Profile
                     </Button>
                   </Link>
                   <Button variant="outline" size="sm" onClick={handleLogout} className="flex items-center gap-2">

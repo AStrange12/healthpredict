@@ -3,30 +3,40 @@
 
 import { use, useEffect, useState } from 'react';
 import { Navigation } from '@/components/Navigation';
-import { getPatientById, addVitalsToPatient, updateClinicalNotes, addPredictionToPatient } from '@/lib/db-mock';
-import { Patient, PredictionResult } from '@/lib/types';
+import { Patient, PredictionResult, VitalReading } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Thermometer, Droplets, Heart, Wind, Clock, AlertTriangle, CheckCircle2, Wand2, ArrowLeft, Loader2 } from 'lucide-react';
+import { Activity, Thermometer, Droplets, Heart, Wind, Clock, Wand2, ArrowLeft, Loader2, User, Info, AlertCircle } from 'lucide-react';
 import { predictPatientDeterioration } from '@/ai/flows/predict-patient-deterioration-flow';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
+import { doc, collection, addDoc, query, orderBy, setDoc } from 'firebase/firestore';
 
 export default function PatientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user, isUserLoading } = useUser();
+  const db = useFirestore();
   const router = useRouter();
-  const [patient, setPatient] = useState<Patient | null>(null);
-  const [isPredicting, setIsPredicting] = useState(false);
   const { toast } = useToast();
+  
+  const [isPredicting, setIsPredicting] = useState(false);
+
+  // Firestore Queries
+  const patientDocRef = useMemoFirebase(() => doc(db, 'patients', id), [db, id]);
+  const vitalsQuery = useMemoFirebase(() => query(collection(db, 'patients', id, 'vitalsRecords'), orderBy('recordedAt', 'desc')), [db, id]);
+  const predictionsQuery = useMemoFirebase(() => query(collection(db, 'patients', id, 'predictions'), orderBy('predictedAt', 'desc')), [db, id]);
+
+  const { data: patient, isLoading: isPatientLoading } = useDoc<Patient>(patientDocRef);
+  const { data: vitals = [] } = useCollection<VitalReading>(vitalsQuery);
+  const { data: predictions = [] } = useCollection<PredictionResult>(predictionsQuery);
 
   // Vitals Input State
   const [hr, setHr] = useState('80');
@@ -44,34 +54,41 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
-    loadPatient();
-  }, [id]);
+    if (patient) {
+      setNotes(patient.clinicalNotes || '');
+    }
+  }, [patient]);
 
-  const loadPatient = async () => {
-    const data = await getPatientById(id);
-    if (data) {
-      setPatient(data);
-      setNotes(data.clinicalNotes);
+  const handleAddVitals = async () => {
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'patients', id, 'vitalsRecords'), {
+        patientId: id,
+        recordedAt: new Date().toISOString(),
+        heartRate: parseInt(hr),
+        bloodPressureSystolic: parseInt(sbp),
+        bloodPressureDiastolic: parseInt(dbp),
+        spo2: parseInt(spo2),
+        respiratoryRate: parseInt(rr),
+        temperature: parseFloat(temp),
+        addedByUserId: user.uid,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      
+      await setDoc(doc(db, 'patients', id), { 
+        clinicalNotes: notes,
+        updatedAt: new Date().toISOString() 
+      }, { merge: true });
+
+      toast({ title: "Vitals Recorded", description: "Patient readings have been logged." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: error.message });
     }
   };
 
-  const handleAddVitals = async () => {
-    await addVitalsToPatient(id, {
-      timestamp: new Date().toISOString(),
-      hr: parseInt(hr),
-      bpSystolic: parseInt(sbp),
-      bpDiastolic: parseInt(dbp),
-      spo2: parseInt(spo2),
-      rr: parseInt(rr),
-      temp: parseFloat(temp),
-    });
-    await updateClinicalNotes(id, notes);
-    toast({ title: "Vitals Updated", description: "Patient readings have been recorded successfully." });
-    loadPatient();
-  };
-
   const handlePredict = async () => {
-    if (!patient) return;
+    if (!patient || !user) return;
     
     setIsPredicting(true);
     try {
@@ -88,28 +105,32 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
         clinicalNotes: notes
       });
 
-      const prediction: PredictionResult = {
-        id: Math.random().toString(36).substr(2, 9),
-        timestamp: new Date().toISOString(),
-        icuTransferRisk: result.icuTransferRisk,
-        cardiacArrestRisk: result.cardiacArrestRisk,
-        mortalityRisk: result.mortalityRisk,
+      await addDoc(collection(db, 'patients', id, 'predictions'), {
+        patientId: id,
+        predictedAt: new Date().toISOString(),
+        icuTransferRiskScore: result.icuTransferRisk,
+        cardiacArrestRiskScore: result.cardiacArrestRisk,
+        mortalityRiskScore: result.mortalityRisk,
+        icuTransferRiskLevel: result.riskLevel, // Mocking levels from overall for brevity
+        cardiacArrestRiskLevel: result.riskLevel,
+        mortalityRiskLevel: result.riskLevel,
         riskLevel: result.riskLevel,
         explanation: result.explanation,
-        featureImportance: result.featureImportance
-      };
+        featureImportance: JSON.stringify(result.featureImportance),
+        triggeredByUserId: user.uid,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
 
-      await addPredictionToPatient(id, prediction);
-      toast({ title: "Prediction Complete", description: "New risk assessment is available." });
-      loadPatient();
-    } catch (error) {
-      toast({ title: "Prediction Failed", variant: "destructive", description: "An error occurred during risk assessment." });
+      toast({ title: "Prediction Complete", description: "New risk assessment generated." });
+    } catch (error: any) {
+      toast({ title: "Prediction Failed", variant: "destructive", description: error.message });
     } finally {
       setIsPredicting(false);
     }
   };
 
-  if (isUserLoading || !user) {
+  if (isUserLoading || isPatientLoading || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -117,9 +138,9 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
     );
   }
 
-  if (!patient) return <div className="p-10 text-center">Loading patient data...</div>;
+  if (!patient) return <div className="p-10 text-center">Patient record not found.</div>;
 
-  const latestPrediction = patient.predictions[0];
+  const latestPrediction = predictions?.[0];
 
   return (
     <div className="min-h-screen bg-background">
@@ -131,55 +152,72 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Patient Profile & Risk Status */}
+          {/* Left Column: Patient Profile & Status */}
           <div className="lg:col-span-1 space-y-6">
             <Card className="border-none shadow-sm overflow-hidden">
               <CardHeader className="bg-primary text-white">
-                <CardTitle className="text-2xl">{patient.name}</CardTitle>
+                <div className="flex justify-between items-start">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                    <User size={24} />
+                  </div>
+                  <Badge className="bg-white/20 hover:bg-white/30 text-white border-none">
+                    {patient.gender}
+                  </Badge>
+                </div>
+                <CardTitle className="text-2xl mt-4">{patient.firstName} {patient.lastName}</CardTitle>
                 <CardDescription className="text-primary-foreground/80">
-                  {patient.age} years • {patient.gender} • ID: <span className="font-code">{patient.id}</span>
+                   ID: <span className="font-code">{patient.patientIdCode}</span>
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pt-6">
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
-                    <div className="text-sm font-medium">Risk Level</div>
-                    <Badge className="px-3 py-1" variant={
-                      latestPrediction?.riskLevel === 'High' ? 'destructive' : 
-                      latestPrediction?.riskLevel === 'Medium' ? 'secondary' : 'outline'
-                    }>
-                      {latestPrediction?.riskLevel || 'Unknown'}
-                    </Badge>
+              <CardContent className="pt-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Age</Label>
+                    <div className="font-semibold">{patient.age || 'N/A'}</div>
                   </div>
-                  
-                  {latestPrediction && (
-                    <div className="space-y-4">
-                      <RiskScore label="ICU Transfer Risk" value={latestPrediction.icuTransferRisk} />
-                      <RiskScore label="Cardiac Arrest Risk" value={latestPrediction.cardiacArrestRisk} />
-                      <RiskScore label="Mortality Risk" value={latestPrediction.mortalityRisk} />
-                    </div>
-                  )}
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Risk</Label>
+                    <div className="font-semibold text-accent">{latestPrediction?.riskLevel || 'TBD'}</div>
+                  </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><Info size={14}/> Risk Factors</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {patient.preExistingConditions ? patient.preExistingConditions.split(',').map(c => (
+                      <Badge key={c} variant="secondary" className="text-[10px]">{c.trim()}</Badge>
+                    )) : <span className="text-xs text-muted-foreground">No conditions listed</span>}
+                    <Badge variant="outline" className="text-[10px]">Smoking: {patient.smokingStatus}</Badge>
+                  </div>
+                </div>
+                
+                {latestPrediction && (
+                  <div className="space-y-4 pt-4 border-t">
+                    <RiskScore label="ICU Transfer" value={latestPrediction.icuTransferRiskScore || 0} />
+                    <RiskScore label="Cardiac Arrest" value={latestPrediction.cardiacArrestRiskScore || 0} />
+                    <RiskScore label="Mortality" value={latestPrediction.mortalityRiskScore || 0} />
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm">
+            <Card className="border-none shadow-sm bg-accent/5">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Wand2 size={20} className="text-accent" />
-                  AI Prediction Engine
+                  Prediction Engine
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Trigger a new assessment based on current vitals and clinical notes.
+                  Generate a multimodal assessment using current vitals and clinical context.
                 </p>
                 <Button 
                   className="w-full h-12 text-lg font-semibold bg-accent hover:bg-accent/90" 
                   onClick={handlePredict}
                   disabled={isPredicting}
                 >
-                  {isPredicting ? 'Analyzing...' : 'Trigger Prediction'}
+                  {isPredicting ? 'Analyzing...' : 'Trigger AI Prediction'}
                 </Button>
               </CardContent>
             </Card>
@@ -189,36 +227,38 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
           <div className="lg:col-span-2 space-y-6">
             <Tabs defaultValue="vitals" className="w-full">
               <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="vitals">Current Vitals</TabsTrigger>
-                <TabsTrigger value="history">Patient History</TabsTrigger>
-                <TabsTrigger value="ai-explanation">AI Insights</TabsTrigger>
+                <TabsTrigger value="vitals">Vitals Input</TabsTrigger>
+                <TabsTrigger value="history">Trends</TabsTrigger>
+                <TabsTrigger value="ai-explanation">AI Analysis</TabsTrigger>
               </TabsList>
 
               <TabsContent value="vitals">
                 <Card className="border-none shadow-sm">
                   <CardHeader>
-                    <CardTitle>Vital Signs Input</CardTitle>
-                    <CardDescription>Enter latest physiological readings and clinical observations.</CardDescription>
+                    <CardTitle>Entry Sheet</CardTitle>
+                    <CardDescription>Record latest physiological measurements and observations.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                      <VitalInput label="Heart Rate (bpm)" icon={<Heart size={16} />} value={hr} onChange={setHr} />
-                      <VitalInput label="Systolic BP (mmHg)" icon={<Activity size={16} />} value={sbp} onChange={setSbp} />
-                      <VitalInput label="Diastolic BP (mmHg)" icon={<Droplets size={16} />} value={dbp} onChange={setDbp} />
+                      <VitalInput label="HR (bpm)" icon={<Heart size={16} />} value={hr} onChange={setHr} />
+                      <VitalInput label="SBP (mmHg)" icon={<Droplets size={16} />} value={sbp} onChange={setSbp} />
+                      <VitalInput label="DBP (mmHg)" icon={<Droplets size={16} />} value={dbp} onChange={setDbp} />
                       <VitalInput label="SpO2 (%)" icon={<Wind size={16} />} value={spo2} onChange={setSpo2} />
-                      <VitalInput label="Respiration (rpm)" icon={<Activity size={16} />} value={rr} onChange={setRr} />
-                      <VitalInput label="Temperature (°C)" icon={<Thermometer size={16} />} value={temp} onChange={setTemp} />
+                      <VitalInput label="RR (rpm)" icon={<Activity size={16} />} value={rr} onChange={setRr} />
+                      <VitalInput label="Temp (°C)" icon={<Thermometer size={16} />} value={temp} onChange={setTemp} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Clinical Notes</Label>
+                      <Label>Clinical Notes & Observations</Label>
                       <Textarea 
-                        placeholder="Add specific observations, patient complaints, or symptoms (e.g., 'Reports mild chest pain', 'Signs of sepsis')..." 
-                        className="min-h-[120px]"
+                        placeholder="Detail symptoms, complaints, or response to treatment..." 
+                        className="min-h-[150px] bg-muted/20"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                       />
                     </div>
-                    <Button onClick={handleAddVitals} variant="secondary" className="w-full">Save & Update Records</Button>
+                    <Button onClick={handleAddVitals} variant="secondary" className="w-full h-11">
+                      Save Records & Update Profile
+                    </Button>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -227,38 +267,44 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
                 <div className="space-y-6">
                   <Card className="border-none shadow-sm">
                     <CardHeader>
-                      <CardTitle>Vitals Trend</CardTitle>
+                      <CardTitle>Vitals Trend Analysis</CardTitle>
                     </CardHeader>
                     <CardContent className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={patient.vitals}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="timestamp" tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
-                          <YAxis />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="hr" stroke="hsl(var(--primary))" name="Heart Rate" strokeWidth={2} dot={false} />
-                          <Line type="monotone" dataKey="spo2" stroke="hsl(var(--accent))" name="SpO2" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      {vitals.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={[...vitals].reverse()}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="recordedAt" tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
+                            <YAxis />
+                            <Tooltip />
+                            <Line type="monotone" dataKey="heartRate" stroke="hsl(var(--primary))" name="HR" strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="spo2" stroke="hsl(var(--accent))" name="SpO2" strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-muted-foreground">
+                          Insufficient data for trending.
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                   
                   <Card className="border-none shadow-sm">
                     <CardHeader>
-                      <CardTitle>Observation Logs</CardTitle>
+                      <CardTitle>Clinical Log</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {patient.vitals.slice().reverse().map((v, i) => (
-                          <div key={v.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20 text-sm">
+                      <div className="space-y-3">
+                        {vitals.map((v, i) => (
+                          <div key={v.id} className="flex items-center justify-between p-3 rounded-xl border bg-muted/10 hover:bg-muted/20 transition-colors text-xs">
                             <div className="flex items-center gap-3">
                               <Clock size={14} className="text-muted-foreground" />
-                              <span className="font-medium">{new Date(v.timestamp).toLocaleString()}</span>
+                              <span className="font-medium">{new Date(v.recordedAt).toLocaleString()}</span>
                             </div>
-                            <div className="flex gap-4 text-muted-foreground">
-                              <span>HR: {v.hr}</span>
-                              <span>BP: {v.bpSystolic}/{v.bpDiastolic}</span>
-                              <span>SpO2: {v.spo2}%</span>
+                            <div className="flex gap-4 font-code text-primary">
+                              <span>HR:{v.heartRate}</span>
+                              <span>BP:{v.bloodPressureSystolic}/{v.bloodPressureDiastolic}</span>
+                              <span>SpO2:{v.spo2}%</span>
                             </div>
                           </div>
                         ))}
@@ -271,25 +317,25 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
               <TabsContent value="ai-explanation">
                 <Card className="border-none shadow-sm">
                   <CardHeader>
-                    <CardTitle>Model Interpretability</CardTitle>
+                    <CardTitle>AI Clinical Rationale</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {latestPrediction ? (
                       <>
-                        <div className="prose prose-sm max-w-none text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        <div className="p-4 rounded-xl bg-accent/5 border border-accent/10 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                           {latestPrediction.explanation}
                         </div>
                         <div className="space-y-4">
-                          <h4 className="font-semibold text-primary">Feature Importance Breakdown</h4>
+                          <h4 className="font-semibold text-primary text-sm">Model Attention Weights</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Object.entries(latestPrediction.featureImportance).map(([key, val]) => (
+                            {latestPrediction.featureImportance && Object.entries(JSON.parse(latestPrediction.featureImportance as string || '{}')).map(([key, val]) => (
                               <div key={key} className="space-y-1">
-                                <div className="flex justify-between text-xs">
-                                  <span className="capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
-                                  <span>{Math.round(val * 100)}%</span>
+                                <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+                                  <span>{key.replace(/([A-Z])/g, ' $1')}</span>
+                                  <span>{Math.round((val as number) * 100)}%</span>
                                 </div>
-                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                                  <div className="h-full bg-accent" style={{ width: `${val * 100}%` }} />
+                                <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+                                  <div className="h-full bg-accent" style={{ width: `${(val as number) * 100}%` }} />
                                 </div>
                               </div>
                             ))}
@@ -297,8 +343,9 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
                         </div>
                       </>
                     ) : (
-                      <div className="py-12 text-center text-muted-foreground">
-                        No prediction data available for analysis.
+                      <div className="py-20 text-center text-muted-foreground border-2 border-dashed rounded-3xl">
+                        <AlertCircle size={32} className="mx-auto mb-2 opacity-20" />
+                        Run a prediction to generate AI insights.
                       </div>
                     )}
                   </CardContent>
@@ -320,12 +367,12 @@ function RiskScore({ label, value }: { label: string, value: number }) {
 
   return (
     <div className="space-y-1.5">
-      <div className="flex justify-between text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
         <span>{label}</span>
         <span>{percentage}%</span>
       </div>
-      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-        <div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${percentage}%` }} />
+      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+        <div className={`h-full ${colorClass} transition-all duration-700`} style={{ width: `${percentage}%` }} />
       </div>
     </div>
   );
@@ -334,11 +381,11 @@ function RiskScore({ label, value }: { label: string, value: number }) {
 function VitalInput({ label, icon, value, onChange }: { label: string, icon: React.ReactNode, value: string, onChange: (v: string) => void }) {
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+      <Label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1">
         {icon}
         {label}
       </Label>
-      <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} className="font-semibold" />
+      <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} className="font-semibold h-10 border-none shadow-sm" />
     </div>
   );
 }
