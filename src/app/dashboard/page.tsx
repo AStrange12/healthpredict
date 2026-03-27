@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, User, Calendar, Activity, ChevronRight, Search as SearchIcon, Loader2, Heart, Wind, Thermometer, Droplets, Stethoscope } from 'lucide-react';
+import { Plus, User, Calendar, Activity, ChevronRight, Search as SearchIcon, Loader2, Heart, Wind, Thermometer, Droplets, Stethoscope, FileSpreadsheet, Upload } from 'lucide-react';
 import { Patient } from '@/lib/types';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -18,6 +18,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, where, doc, setDoc, addDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 function calculateAge(dobString: string) {
   if (!dobString) return null;
@@ -40,6 +41,7 @@ export default function DoctorDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Comprehensive Form State
   const [firstName, setFirstName] = useState('');
@@ -72,6 +74,80 @@ export default function DoctorDashboard() {
       router.push('/login');
     }
   }, [user, isUserLoading, router]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        if (data.length > 0) {
+          const row: any = data[0];
+          const headers = Object.keys(row);
+          
+          const findVal = (aliases: string[]) => {
+            const key = headers.find(h => aliases.some(a => h.toLowerCase().trim().includes(a)));
+            return key ? String(row[key]).trim() : '';
+          };
+
+          // Basic Info
+          const rawName = findVal(['name', 'patient', 'full name']);
+          if (rawName) {
+            const parts = rawName.split(' ');
+            setFirstName(parts[0] || '');
+            setLastName(parts.slice(1).join(' ') || '');
+          } else {
+            setFirstName(findVal(['first name', 'fname', 'firstname']));
+            setLastName(findVal(['last name', 'lname', 'lastname']));
+          }
+
+          setDob(findVal(['dob', 'birth', 'date of birth']));
+          const rawGender = findVal(['gender', 'sex']).toLowerCase();
+          if (rawGender.startsWith('m')) setGender('Male');
+          else if (rawGender.startsWith('f')) setGender('Female');
+          else setGender('Other');
+          
+          setPatientIdCode(findVal(['id', 'code', 'patientid']));
+
+          // Vitals
+          setHr(findVal(['hr', 'heart', 'pulse', 'bpm']) || '75');
+          setSbp(findVal(['sbp', 'systolic']) || '120');
+          setDbp(findVal(['dbp', 'diastolic']) || '80');
+          setSpo2(findVal(['spo2', 'oxygen', 'o2', 'sat']) || '98');
+          setRr(findVal(['rr', 'respiratory', 'breath']) || '16');
+          setTemp(findVal(['temp', 'temperature', 'celsius']) || '37');
+
+          // Clinical
+          setConditions(findVal(['condition', 'pre-existing', 'history', 'medical']));
+          const rawSmoking = findVal(['smoking', 'tobacco']).toLowerCase();
+          if (rawSmoking.includes('never')) setSmoking('Never');
+          else if (rawSmoking.includes('form') || rawSmoking.includes('ex')) setSmoking('Former');
+          else if (rawSmoking.includes('curr') || rawSmoking.includes('yes')) setSmoking('Current');
+
+          toast({
+            title: "Data Extracted",
+            description: "Patient details have been auto-filled from the uploaded file.",
+          });
+        }
+      } catch (err) {
+        toast({
+          variant: "destructive",
+          title: "Upload Failed",
+          description: "Could not parse the file. Please check the format.",
+        });
+      }
+    };
+    reader.readAsBinaryString(file);
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handleAddPatient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,6 +211,12 @@ export default function DoctorDashboard() {
     setDob('');
     setGender('Male');
     setPatientIdCode('');
+    setHr('75');
+    setSbp('120');
+    setDbp('80');
+    setSpo2('98');
+    setRr('16');
+    setTemp('37');
     setConditions('');
     setSmoking('Never');
   };
@@ -172,7 +254,10 @@ export default function DoctorDashboard() {
               />
             </div>
             
-            <Dialog open={isAddPatientOpen} onOpenChange={setIsAddPatientOpen}>
+            <Dialog open={isAddPatientOpen} onOpenChange={(open) => {
+              setIsAddPatientOpen(open);
+              if (!open) resetForm();
+            }}>
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-2 h-11 px-6 shadow-md bg-accent hover:bg-accent/90">
                   <Plus size={18} />
@@ -181,7 +266,30 @@ export default function DoctorDashboard() {
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-bold text-primary">Comprehensive Patient Registration</DialogTitle>
+                  <div className="flex items-center justify-between">
+                    <DialogTitle className="text-2xl font-bold text-primary">Patient Registration</DialogTitle>
+                    <div className="flex gap-2">
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleFileUpload} 
+                        accept=".xlsx, .csv" 
+                        className="hidden" 
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <FileSpreadsheet size={16} />
+                        Import Excel
+                      </Button>
+                    </div>
+                  </div>
+                  <DialogDescription>
+                    Enter details manually or upload a clinical record file to auto-fill.
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAddPatient} className="space-y-6 pt-4">
                   <Tabs defaultValue="basic" className="w-full">
