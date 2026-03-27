@@ -1,4 +1,3 @@
-
 "use client";
 
 import { use, useEffect, useState } from 'react';
@@ -10,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Thermometer, Droplets, Heart, Wind, Clock, Wand2, ArrowLeft, Loader2, User, Info, AlertCircle, BrainCircuit, Database } from 'lucide-react';
+import { Activity, Thermometer, Droplets, Heart, Wind, Clock, Wand2, ArrowLeft, Loader2, User, Info, AlertCircle, BrainCircuit, Database, ChevronRight } from 'lucide-react';
 import { predictPatientDeterioration } from '@/ai/flows/predict-patient-deterioration-flow';
 import { predictAIAssessment } from '@/ai/flows/ai-prediction-flow';
 import Link from 'next/link';
@@ -43,7 +42,6 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
   
   const [isPredicting, setIsPredicting] = useState<false | 'ai' | 'model'>(false);
 
-  // Firestore Queries
   const patientDocRef = useMemoFirebase(() => doc(db, 'patients', id), [db, id]);
   const vitalsQuery = useMemoFirebase(() => query(collection(db, 'patients', id, 'vitalsRecords'), orderBy('recordedAt', 'desc')), [db, id]);
   const predictionsQuery = useMemoFirebase(() => query(collection(db, 'patients', id, 'predictions'), orderBy('predictedAt', 'desc')), [db, id]);
@@ -55,7 +53,6 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
   const vitals = vitalsData || [];
   const predictions = predictionsData || [];
 
-  // Vitals Input State
   const [hr, setHr] = useState('');
   const [sbp, setSbp] = useState('');
   const [dbp, setDbp] = useState('');
@@ -138,7 +135,6 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
         ? await predictAIAssessment(input)
         : await predictPatientDeterioration(input);
 
-      // 1. Add detailed prediction to subcollection
       await addDoc(collection(db, 'patients', id, 'predictions'), {
         patientId: id,
         predictedAt: new Date().toISOString(),
@@ -154,7 +150,6 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
         updatedAt: new Date().toISOString(),
       });
 
-      // 2. Mirror latest risk to parent patient doc for public dashboard accessibility
       await setDoc(doc(db, 'patients', id), {
         latestRiskLevel: result.riskLevel,
         latestIcuRisk: result.icuTransferRisk,
@@ -188,185 +183,204 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
   const age = patient.age || calculateAge(patient.dateOfBirth);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-12">
       <Navigation />
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <Link href="/dashboard" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary mb-6 transition-colors">
-          <ArrowLeft size={16} className="mr-1" />
-          Back to Dashboard
+        <Link href="/dashboard" className="inline-flex items-center text-sm font-bold text-primary hover:text-primary/70 mb-8 transition-colors bg-white px-4 py-2 rounded-full shadow-sm">
+          <ArrowLeft size={16} className="mr-2" />
+          Back to Roster
         </Link>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1 space-y-6">
-            <Card className="border-none shadow-sm overflow-hidden">
-              <CardHeader className="bg-primary text-white">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-4 space-y-6">
+            <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden bg-white">
+              <CardHeader className="bg-primary text-white p-8">
                 <div className="flex justify-between items-start">
-                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                    <User size={24} />
+                  <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-md">
+                    <User size={32} />
                   </div>
-                  <Badge className="bg-white/20 hover:bg-white/30 text-white border-none">
+                  <Badge className="bg-white/20 hover:bg-white/30 text-white border-none rounded-full px-4 py-1">
                     {patient.gender}
                   </Badge>
                 </div>
-                <CardTitle className="text-2xl mt-4">{patient.firstName} {patient.lastName}</CardTitle>
-                <CardDescription className="text-primary-foreground/80">
-                   ID: <span className="font-code">{patient.patientIdCode}</span>
+                <CardTitle className="text-3xl font-extrabold mt-6 tracking-tight">{patient.firstName} {patient.lastName}</CardTitle>
+                <CardDescription className="text-primary-foreground/70 font-medium">
+                   Clinical ID: <span className="font-code text-white">{patient.patientIdCode}</span>
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pt-6 space-y-4">
+              <CardContent className="p-8 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 rounded-lg bg-muted/50">
-                    <Label className="text-[10px] uppercase text-muted-foreground">Age</Label>
-                    <div className="font-semibold">{age || 'N/A'}</div>
+                  <div className="p-4 rounded-3xl bg-muted/30 border border-muted-foreground/5">
+                    <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Patient Age</Label>
+                    <div className="text-xl font-bold text-primary mt-1">{age || 'N/A'} Yrs</div>
                   </div>
-                  <div className="p-3 rounded-lg bg-muted/50">
-                    <Label className="text-[10px] uppercase text-muted-foreground">Risk</Label>
-                    <div className="font-semibold text-accent">{latestPrediction?.riskLevel || 'TBD'}</div>
+                  <div className="p-4 rounded-3xl bg-muted/30 border border-muted-foreground/5">
+                    <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Latest Risk</Label>
+                    <div className={`text-xl font-bold mt-1 ${latestPrediction?.riskLevel === 'High' ? 'text-destructive' : 'text-accent'}`}>{latestPrediction?.riskLevel || 'TBD'}</div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2"><Info size={14}/> Risk Factors</Label>
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase"><Info size={14} className="text-primary"/> Risk Profiles</Label>
                   <div className="flex flex-wrap gap-2">
                     {patient.preExistingConditions ? patient.preExistingConditions.split(',').map(c => (
-                      <Badge key={c} variant="secondary" className="text-[10px]">{c.trim()}</Badge>
-                    )) : <span className="text-xs text-muted-foreground">No conditions listed</span>}
-                    <Badge variant="outline" className="text-[10px]">Smoking: {patient.smokingStatus}</Badge>
+                      <Badge key={c} variant="secondary" className="text-[10px] font-bold bg-primary/5 text-primary border-none rounded-full px-3">{c.trim()}</Badge>
+                    )) : <span className="text-xs text-muted-foreground italic">No known conditions</span>}
+                    <Badge variant="outline" className="text-[10px] rounded-full border-accent/20 text-accent">Tobacco: {patient.smokingStatus}</Badge>
                   </div>
                 </div>
                 
                 {latestPrediction && (
-                  <div className="space-y-4 pt-4 border-t">
-                    <div className="flex items-center justify-between mb-2">
-                      <Label className="text-[10px] font-bold uppercase text-muted-foreground">Method</Label>
-                      <Badge variant="outline" className="text-[9px] uppercase">
-                        {latestPrediction.predictionMethod === 'ai' ? 'AI Assessment' : 'ML Model'}
+                  <div className="space-y-5 pt-6 border-t border-muted">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Inference Method</Label>
+                      <Badge variant="outline" className="text-[9px] uppercase font-bold bg-accent/5 text-accent border-accent/20 rounded-full px-3 py-0.5">
+                        {latestPrediction.predictionMethod === 'ai' ? 'GenAI Logic' : 'ML Dataset Search'}
                       </Badge>
                     </div>
-                    <RiskScore label="ICU Transfer" value={latestPrediction.icuTransferRiskScore || 0} />
-                    <RiskScore label="Cardiac Arrest" value={latestPrediction.cardiacArrestRiskScore || 0} />
-                    <RiskScore label="Mortality" value={latestPrediction.mortalityRiskScore || 0} />
+                    <div className="space-y-4">
+                      <RiskScore label="ICU Transfer" value={latestPrediction.icuTransferRiskScore || 0} />
+                      <RiskScore label="Cardiac Arrest" value={latestPrediction.cardiacArrestRiskScore || 0} />
+                      <RiskScore label="Mortality" value={latestPrediction.mortalityRiskScore || 0} />
+                    </div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-accent/5">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Wand2 size={20} className="text-accent" />
-                  Prediction Engine
+            <Card className="border-none shadow-xl rounded-[2rem] bg-accent/5 overflow-hidden">
+              <CardHeader className="p-8 pb-4">
+                <CardTitle className="text-xl font-bold flex items-center gap-3">
+                  <Wand2 size={24} className="text-accent" />
+                  Insight Engines
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="p-8 pt-4 space-y-4">
                 <Button 
                   variant="outline"
-                  className="w-full h-11 text-sm font-semibold border-primary/20 text-primary hover:bg-primary/5 gap-2" 
+                  className="w-full h-14 text-sm font-bold border-primary/20 text-primary hover:bg-primary hover:text-white rounded-2xl gap-3 transition-all active:scale-95 shadow-sm" 
                   onClick={() => runPrediction('ai')}
                   disabled={!!isPredicting}
                 >
-                  {isPredicting === 'ai' ? <Loader2 size={16} className="animate-spin" /> : <BrainCircuit size={18} />}
-                  AI Assessment (Experimental)
+                  {isPredicting === 'ai' ? <Loader2 size={18} className="animate-spin" /> : <BrainCircuit size={20} />}
+                  AI Assessment
                 </Button>
                 <Button 
-                  className="w-full h-11 text-sm font-semibold bg-accent hover:bg-accent/90 gap-2" 
+                  className="w-full h-14 text-sm font-bold bg-accent hover:bg-accent/90 text-white rounded-2xl gap-3 transition-all active:scale-95 shadow-lg shadow-accent/20" 
                   onClick={() => runPrediction('model')}
                   disabled={!!isPredicting}
                 >
-                  {isPredicting === 'model' ? <Loader2 size={16} className="animate-spin" /> : <Database size={18} />}
-                  Model Prediction (Data-driven)
+                  {isPredicting === 'model' ? <Loader2 size={18} className="animate-spin" /> : <Database size={20} />}
+                  Dataset Inference
                 </Button>
               </CardContent>
             </Card>
           </div>
 
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-8 space-y-6">
             <Tabs defaultValue="vitals" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="vitals">Vitals Input</TabsTrigger>
-                <TabsTrigger value="history">Trends</TabsTrigger>
-                <TabsTrigger value="ai-explanation">Insights</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 mb-8 bg-white/50 p-1.5 rounded-2xl shadow-sm">
+                <TabsTrigger value="vitals" className="rounded-xl font-bold py-2.5">Entry Sheet</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-xl font-bold py-2.5">Trend Analysis</TabsTrigger>
+                <TabsTrigger value="ai-explanation" className="rounded-xl font-bold py-2.5">AI Insights</TabsTrigger>
               </TabsList>
 
               <TabsContent value="vitals">
-                <Card className="border-none shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Entry Sheet</CardTitle>
-                    <CardDescription>Record latest physiological measurements and observations.</CardDescription>
+                <Card className="border-none shadow-xl rounded-[2.5rem] bg-white p-4">
+                  <CardHeader className="p-8">
+                    <CardTitle className="text-2xl font-bold">New Physiological Entry</CardTitle>
+                    <CardDescription className="text-base">Document the latest vital signs and clinical notes for this patient.</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                      <VitalInput label="Pulse (bpm)" icon={<Heart size={16} />} value={hr} onChange={setHr} />
-                      <VitalInput label="BP (Systolic)" icon={<Droplets size={16} />} value={sbp} onChange={setSbp} />
-                      <VitalInput label="BP (Diastolic)" icon={<Droplets size={16} />} value={dbp} onChange={setDbp} />
-                      <VitalInput label="SpO2 (%)" icon={<Wind size={16} />} value={spo2} onChange={setSpo2} />
-                      <VitalInput label="RR (breaths/min)" icon={<Activity size={16} />} value={rr} onChange={setRr} />
-                      <VitalInput label="Temp (°C)" icon={<Thermometer size={16} />} value={temp} onChange={setTemp} />
+                  <CardContent className="p-8 pt-0 space-y-8">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+                      <VitalInput label="HR (bpm)" icon={<Heart size={18} className="text-destructive" />} value={hr} onChange={setHr} />
+                      <VitalInput label="SBP (mmHg)" icon={<Droplets size={18} className="text-primary" />} value={sbp} onChange={setSbp} />
+                      <VitalInput label="DBP (mmHg)" icon={<Droplets size={18} className="text-primary" />} value={dbp} onChange={setDbp} />
+                      <VitalInput label="SpO2 (%)" icon={<Wind size={18} className="text-accent" />} value={spo2} onChange={setSpo2} />
+                      <VitalInput label="RR (/min)" icon={<Activity size={18} className="text-emerald-500" />} value={rr} onChange={setRr} />
+                      <VitalInput label="Temp (°C)" icon={<Thermometer size={18} className="text-orange-500" />} value={temp} onChange={setTemp} />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Clinical Notes & Observations</Label>
+                    <div className="space-y-3">
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Clinical Observations</Label>
                       <Textarea 
-                        placeholder="Detail symptoms, complaints, or response to treatment..." 
-                        className="min-h-[150px] bg-muted/20"
+                        placeholder="Detail any symptoms, subjective complaints, or changes in clinical status..." 
+                        className="min-h-[180px] bg-muted/20 rounded-[1.5rem] border-none focus-visible:ring-primary/20 p-6 text-base"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                       />
                     </div>
-                    <Button onClick={handleAddVitals} variant="secondary" className="w-full h-11">
-                      Save Records & Update Profile
+                    <Button onClick={handleAddVitals} variant="secondary" className="w-full h-14 rounded-2xl text-lg font-bold shadow-md active:scale-95 transition-all">
+                      Log Vitals & Save Notes
                     </Button>
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="history">
-                <div className="space-y-6">
-                  <Card className="border-none shadow-sm">
-                    <CardHeader>
-                      <CardTitle>Vitals Trend Analysis</CardTitle>
+                <div className="space-y-8">
+                  <Card className="border-none shadow-xl rounded-[2.5rem] bg-white p-4 overflow-hidden">
+                    <CardHeader className="p-8">
+                      <CardTitle className="text-2xl font-bold">Physiological Trajectories</CardTitle>
                     </CardHeader>
-                    <CardContent className="h-[300px]">
+                    <CardContent className="h-[350px] p-8 pt-0">
                       {isVitalsLoading ? (
                         <div className="h-full flex items-center justify-center text-muted-foreground">
-                          <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading vitals trends...
+                          <Loader2 className="w-8 h-8 animate-spin mr-3 text-primary/40" /> 
+                          <span className="font-medium">Synthesizing trends...</span>
                         </div>
                       ) : (vitals?.length || 0) > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={[...(vitals || [])].reverse()}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="recordedAt" tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
-                            <YAxis />
-                            <Tooltip />
-                            <Line type="monotone" dataKey="heartRate" stroke="hsl(var(--primary))" name="HR" strokeWidth={2} dot={false} />
-                            <Line type="monotone" dataKey="spo2" stroke="hsl(var(--accent))" name="SpO2" strokeWidth={2} dot={false} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                            <XAxis 
+                              dataKey="recordedAt" 
+                              tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{fontSize: 10, fill: '#999'}}
+                            />
+                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#999'}} />
+                            <Tooltip 
+                              contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}}
+                            />
+                            <Line type="monotone" dataKey="heartRate" stroke="hsl(var(--primary))" name="Heart Rate" strokeWidth={4} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                            <Line type="monotone" dataKey="spo2" stroke="hsl(var(--accent))" name="SpO2" strokeWidth={4} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
                           </LineChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-muted-foreground">
-                          Insufficient data for trending.
+                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-[2rem] bg-muted/10">
+                          <Activity size={48} className="opacity-10 mb-4" />
+                          <p className="font-bold">Insufficient data for trending.</p>
                         </div>
                       )}
                     </CardContent>
                   </Card>
                   
-                  <Card className="border-none shadow-sm">
-                    <CardHeader>
-                      <CardTitle>Clinical Log</CardTitle>
+                  <Card className="border-none shadow-xl rounded-[2.5rem] bg-white p-4">
+                    <CardHeader className="p-8">
+                      <CardTitle className="text-2xl font-bold">Clinical Events Log</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {isVitalsLoading && <div className="text-center py-4 text-muted-foreground">Loading clinical logs...</div>}
-                        {!isVitalsLoading && (vitals?.length || 0) === 0 && <div className="text-center py-4 text-muted-foreground">No records logged yet.</div>}
+                    <CardContent className="p-8 pt-0">
+                      <div className="space-y-4">
+                        {isVitalsLoading && <div className="text-center py-12 text-muted-foreground animate-pulse">Synchronizing clinical logs...</div>}
+                        {!isVitalsLoading && (vitals?.length || 0) === 0 && (
+                          <div className="text-center py-12 text-muted-foreground">No records logged in the clinical history.</div>
+                        )}
                         {(vitals || []).map((v, i) => (
-                          <div key={v.id} className="flex items-center justify-between p-3 rounded-xl border bg-muted/10 hover:bg-muted/20 transition-colors text-xs">
-                            <div className="flex items-center gap-3">
-                              <Clock size={14} className="text-muted-foreground" />
-                              <span className="font-medium">{new Date(v.recordedAt).toLocaleString()}</span>
+                          <div key={v.id} className="flex items-center justify-between p-5 rounded-[1.5rem] border border-muted-foreground/5 bg-muted/10 hover:bg-muted/20 transition-all group">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-primary shadow-sm group-hover:scale-110 transition-transform">
+                                <Clock size={18} />
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm">{new Date(v.recordedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mt-0.5">Vital Snapshot</p>
+                              </div>
                             </div>
-                            <div className="flex gap-4 font-code text-primary">
-                              <span>HR:{v.heartRate}</span>
-                              <span>BP:{v.heartRate > 0 ? `${v.bloodPressureSystolic}/${v.bloodPressureDiastolic}` : 'N/A'}</span>
-                              <span>SpO2:{v.spo2}%</span>
+                            <div className="flex gap-6 font-code text-primary font-bold text-xs">
+                              <span className="flex items-center gap-1"><Heart size={12}/> {v.heartRate}</span>
+                              <span className="flex items-center gap-1"><Droplets size={12}/> {v.heartRate > 0 ? `${v.bloodPressureSystolic}/${v.bloodPressureDiastolic}` : 'N/A'}</span>
+                              <span className="flex items-center gap-1"><Wind size={12}/> {v.spo2}%</span>
                             </div>
                           </div>
                         ))}
@@ -377,33 +391,35 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
               </TabsContent>
 
               <TabsContent value="ai-explanation">
-                <Card className="border-none shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="flex justify-between items-center">
-                      Rationale & Insights
+                <Card className="border-none shadow-xl rounded-[2.5rem] bg-white p-4">
+                  <CardHeader className="p-8">
+                    <CardTitle className="text-2xl font-bold flex items-center justify-between">
+                      Clinical Rationale & Insights
+                      <Badge variant="outline" className="rounded-full bg-accent/5 text-accent border-accent/20 font-bold">Genkit v1.0 Engine</Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="p-8 pt-0 space-y-10">
                     {isPredictionsLoading ? (
-                      <div className="py-20 text-center text-muted-foreground">
-                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /> Loading insights...
+                      <div className="py-24 text-center text-muted-foreground">
+                        <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 text-accent/40" /> 
+                        <p className="font-bold">Analyzing multimodal data streams...</p>
                       </div>
                     ) : latestPrediction ? (
                       <>
-                        <div className="p-4 rounded-xl bg-accent/5 border border-accent/10 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                          {latestPrediction.explanation}
+                        <div className="p-8 rounded-[2rem] bg-accent/5 border border-accent/10 text-lg text-primary/80 leading-relaxed font-medium italic">
+                          "{latestPrediction.explanation}"
                         </div>
-                        <div className="space-y-4">
-                          <h4 className="font-semibold text-primary text-sm">Medical Attention Weights</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-6">
+                          <h4 className="font-extrabold text-primary text-sm uppercase tracking-widest">Medical Attention Distribution</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {latestPrediction.featureImportance && Object.entries(JSON.parse(latestPrediction.featureImportance as string || '{}')).map(([key, val]) => (
-                              <div key={key} className="space-y-1">
-                                <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+                              <div key={key} className="space-y-2">
+                                <div className="flex justify-between text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground">
                                   <span>{key.replace(/([A-Z])/g, ' $1')}</span>
-                                  <span>{Math.round((val as number) * 100)}%</span>
+                                  <span className="text-accent">{Math.round((val as number) * 100)}%</span>
                                 </div>
-                                <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-                                  <div className="h-full bg-accent" style={{ width: `${(val as number) * 100}%` }} />
+                                <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                                  <div className="h-full bg-accent transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(139,92,246,0.3)]" style={{ width: `${(val as number) * 100}%` }} />
                                 </div>
                               </div>
                             ))}
@@ -411,9 +427,10 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
                         </div>
                       </>
                     ) : (
-                      <div className="py-20 text-center text-muted-foreground border-2 border-dashed rounded-3xl">
-                        <AlertCircle size={32} className="mx-auto mb-2 opacity-20" />
-                        Run a prediction or assessment to generate insights.
+                      <div className="py-24 text-center text-muted-foreground border-2 border-dashed rounded-[2.5rem] bg-muted/5 flex flex-col items-center">
+                        <AlertCircle size={48} className="mx-auto mb-4 opacity-10" />
+                        <p className="font-bold text-lg">No Rationale Available</p>
+                        <p className="max-w-xs mx-auto mt-2">Run an AI Assessment or Dataset Inference to generate clinical insights.</p>
                       </div>
                     )}
                   </CardContent>
@@ -429,18 +446,18 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
 
 function RiskScore({ label, value }: { label: string, value: number }) {
   const percentage = Math.round(value * 100);
-  let colorClass = 'bg-emerald-500';
-  if (value > 0.7) colorClass = 'bg-destructive';
-  else if (value > 0.4) colorClass = 'bg-amber-500';
+  let colorClass = 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]';
+  if (value > 0.7) colorClass = 'bg-destructive shadow-[0_0_10px_rgba(239,68,68,0.3)]';
+  else if (value > 0.4) colorClass = 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]';
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+    <div className="space-y-2">
+      <div className="flex justify-between text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
         <span>{label}</span>
-        <span>{percentage}%</span>
+        <span className={value > 0.4 ? 'text-primary' : 'text-muted-foreground'}>{percentage}% Probability</span>
       </div>
-      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-        <div className={`h-full ${colorClass} transition-all duration-700`} style={{ width: `${percentage}%` }} />
+      <div className="h-2.5 w-full bg-muted/50 rounded-full overflow-hidden">
+        <div className={`h-full ${colorClass} transition-all duration-1000 ease-in-out`} style={{ width: `${percentage}%` }} />
       </div>
     </div>
   );
@@ -448,12 +465,12 @@ function RiskScore({ label, value }: { label: string, value: number }) {
 
 function VitalInput({ label, icon, value, onChange }: { label: string, icon: React.ReactNode, value: string, onChange: (v: string) => void }) {
   return (
-    <div className="space-y-2">
-      <Label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1">
+    <div className="space-y-3 p-4 rounded-3xl bg-muted/20 border border-muted-foreground/5 hover:bg-muted/30 transition-all">
+      <Label className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
         {icon}
         {label}
       </Label>
-      <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} className="font-semibold h-10 border-none shadow-sm" />
+      <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} className="font-extrabold text-xl h-12 border-none bg-transparent shadow-none p-0 focus-visible:ring-0" />
     </div>
   );
 }
