@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, User, Calendar, Activity, ChevronRight, Search as SearchIcon, Loader2, Heart, Wind, Thermometer, Droplets, Stethoscope, FileSpreadsheet, Upload } from 'lucide-react';
 import { Patient } from '@/lib/types';
 import Link from 'next/link';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
