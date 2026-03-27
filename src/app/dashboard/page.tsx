@@ -5,12 +5,12 @@ import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, User, Calendar, Activity, ChevronRight, Search as SearchIcon, Loader2, Heart, Wind, Thermometer, Droplets, Stethoscope, FileSpreadsheet, AlertTriangle } from 'lucide-react';
+import { Plus, User, Calendar, Activity, ChevronRight, Search as SearchIcon, Loader2, Heart, Wind, Thermometer, Droplets, Stethoscope, FileSpreadsheet } from 'lucide-react';
 import { Patient } from '@/lib/types';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -281,7 +281,7 @@ export default function DoctorDashboard() {
                     </div>
                   </div>
                   <DialogDescription>
-                    Fill in the patient's clinical profile manually or import a clinical data sheet.
+                    Enter details manually or upload a clinical record file to auto-fill.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAddPatient} className="space-y-6 pt-4">
