@@ -13,44 +13,36 @@ service cloud.firestore {
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
-    function isMember(membersMap) {
-      return isSignedIn() && request.auth.uid in membersMap;
-    }
-    function isImmutable(fieldName) {
-      return request.resource.data[fieldName] == resource.data[fieldName];
-    }
 
     // --- User Profiles ---
     match /users/{userId} {
       allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && isImmutable('id');
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     // --- Patient Records (Public Read for Search) ---
     match /patients/{patientId} {
-      // Allow public read for searching by ID/Name as requested for Public Portal
-      allow get, list: if true;
+      // Allow public read (get and list) for searching by ID/Name
+      allow read: if true;
       
       allow create: if isSignedIn() && request.resource.data.addedByUserId == request.auth.uid;
       allow update: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid);
       allow delete: if isSignedIn() && resource != null && resource.data.addedByUserId == request.auth.uid;
 
       match /vitalsRecords/{vitalsRecordId} {
-        allow get, list: if true; // Public check for trends if needed
+        allow read: if true; // Public check for trends if needed
         allow create: if isSignedIn() && request.resource.data.addedByUserId == request.auth.uid;
         allow update, delete: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid);
       }
 
       match /clinicalNotes/{clinicalNoteId} {
-        allow get, list: if isSignedIn(); // Keep notes private to medical staff
-        allow create: if isSignedIn() && request.resource.data.addedByUserId == request.auth.uid;
-        allow update, delete: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid);
+        allow read, write: if isSignedIn(); // Keep notes private to medical staff
       }
 
       match /predictions/{predictionId} {
-        allow get, list: if true; // Public check for results
+        allow read: if true; // Public check for results
         allow create: if isSignedIn() && request.resource.data.triggeredByUserId == request.auth.uid;
         allow update, delete: if isSignedIn() && resource != null && (resource.data.triggeredByUserId == request.auth.uid);
       }
