@@ -34,32 +34,26 @@ service cloud.firestore {
       allow get, list: if true;
       
       allow create: if isSignedIn() && request.resource.data.addedByUserId == request.auth.uid;
-      allow update: if isSignedIn() && resource != null && (isMember(resource.data.members) || resource.data.addedByUserId == request.auth.uid);
+      allow update: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid);
       allow delete: if isSignedIn() && resource != null && resource.data.addedByUserId == request.auth.uid;
 
       match /vitalsRecords/{vitalsRecordId} {
-        allow get, list: if true; // Public check for trends
+        allow get, list: if true; // Public check for trends if needed
         allow create: if isSignedIn() && request.resource.data.addedByUserId == request.auth.uid;
-        allow update, delete: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid || resource.data.patientOwnerId == request.auth.uid);
+        allow update, delete: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid);
       }
 
       match /clinicalNotes/{clinicalNoteId} {
         allow get, list: if isSignedIn(); // Keep notes private to medical staff
         allow create: if isSignedIn() && request.resource.data.addedByUserId == request.auth.uid;
-        allow update, delete: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid || resource.data.patientOwnerId == request.auth.uid);
+        allow update, delete: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid);
       }
 
       match /predictions/{predictionId} {
         allow get, list: if true; // Public check for results
         allow create: if isSignedIn() && request.resource.data.triggeredByUserId == request.auth.uid;
-        allow update, delete: if isSignedIn() && resource != null && (resource.data.triggeredByUserId == request.auth.uid || resource.data.patientOwnerId == request.auth.uid);
+        allow update, delete: if isSignedIn() && resource != null && (resource.data.triggeredByUserId == request.auth.uid);
       }
-    }
-
-    match /public_prediction_summaries/{publicPredictionSummaryId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.triggeredByUserId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource != null && resource.data.triggeredByUserId == request.auth.uid;
     }
   }
 }

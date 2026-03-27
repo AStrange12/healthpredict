@@ -1,188 +1,195 @@
-
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Search as SearchIcon, Loader2, User, AlertTriangle, ShieldCheck, Activity } from 'lucide-react';
+import { Search, ShieldCheck, Activity, AlertCircle, Loader2, User } from 'lucide-react';
+import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
-import { Patient } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
 
 export default function PublicPortal() {
   const db = useFirestore();
   const [searchInput, setSearchInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [result, setResult] = useState<Patient | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [searchResult, setSearchResult] = useState<any[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Fix hydration mismatch by only rendering search results after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const queryStr = searchInput.trim();
-    if (!queryStr) return;
+    if (!searchInput.trim()) return;
 
     setIsSearching(true);
-    setResult(null);
-    setError(null);
+    setHasSearched(true);
+    setSearchResult([]);
+
+    const term = searchInput.trim();
+    const termLower = term.toLowerCase();
 
     try {
-      // 1. Try search by Patient ID Code (Exact Match)
-      let q = query(collection(db, 'patients'), where('patientIdCode', '==', queryStr), limit(1));
-      let snapshot = await getDocs(q);
+      // Search by Patient ID Code (Exact)
+      const idQuery = query(collection(db, 'patients'), where('patientIdCode', '==', term), limit(1));
+      const idSnap = await getDocs(idQuery);
+      
+      let results: any[] = [];
+      idSnap.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
 
-      // 2. Fallback to search by Name (Case Insensitive using name_lower)
-      if (snapshot.empty) {
-        q = query(collection(db, 'patients'), where('name_lower', '==', queryStr.toLowerCase()), limit(1));
-        snapshot = await getDocs(q);
+      // If no ID match, try Name search (Exact match for security/privacy)
+      if (results.length === 0) {
+        const nameQuery = query(collection(db, 'patients'), where('name_lower', '==', termLower), limit(1));
+        const nameSnap = await getDocs(nameQuery);
+        nameSnap.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
       }
 
-      if (!snapshot.empty) {
-        const patientData = snapshot.docs[0].data() as Patient;
-        setResult(patientData);
-      } else {
-        setError("Patient record not found. Please verify the ID or name.");
-      }
-    } catch (err: any) {
-      console.error("Public search error:", err);
-      setError("An error occurred during search. Please try again later.");
+      setSearchResult(results);
+    } catch (error) {
+      console.error("Search failed:", error);
     } finally {
       setIsSearching(false);
     }
   };
 
+  if (!mounted) return null;
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
-      
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-12">
         <div className="text-center mb-12">
-          <Badge className="mb-4 bg-primary/10 text-primary hover:bg-primary/20 border-none px-4 py-1">
-            Patient Transparency Portal
-          </Badge>
-          <h1 className="text-4xl font-bold text-primary mb-4 font-headline">Access Your Health Predictions</h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Securely search for patient risk assessments using your unique Patient ID or registered full name.
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 text-accent mb-6">
+            <ShieldCheck size={18} />
+            <span className="text-sm font-semibold">Secure Patient Access Portal</span>
+          </div>
+          <h1 className="text-4xl font-bold text-primary mb-4 font-headline">Find Risk Assessment</h1>
+          <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+            Enter your Patient ID or full name as registered by your healthcare provider to view your latest clinical deterioration risk summary.
           </p>
         </div>
 
-        <Card className="border-none shadow-lg mb-8">
+        <Card className="border-none shadow-xl overflow-hidden bg-white/50 backdrop-blur-sm">
           <CardContent className="pt-8">
-            <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+            <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3">
               <div className="relative flex-1">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                 <Input 
                   placeholder="Enter Patient ID (e.g. P-ABC123) or Full Name..." 
-                  className="pl-12 h-14 text-lg border-muted bg-muted/20"
+                  className="pl-12 h-14 text-lg border-2 focus-visible:ring-accent"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                 />
               </div>
-              <Button type="submit" className="h-14 px-8 text-lg font-semibold shadow-md" disabled={isSearching}>
-                {isSearching ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <SearchIcon className="w-6 h-6 mr-2" />}
-                Search Record
+              <Button type="submit" className="h-14 px-8 text-lg font-semibold bg-primary hover:bg-primary/90" disabled={isSearching}>
+                {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify Status"}
               </Button>
             </form>
-            {error && (
-              <p className="mt-4 text-destructive text-sm font-medium flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
-                <AlertTriangle size={16} />
-                {error}
-              </p>
-            )}
           </CardContent>
         </Card>
 
-        {result && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Card className="border-none shadow-xl overflow-hidden">
-              <div className="bg-primary p-8 text-white">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-                      <User size={32} />
+        <div className="mt-12">
+          {isSearching && (
+            <div className="flex flex-col items-center py-12 text-muted-foreground">
+              <Loader2 className="w-10 h-10 animate-spin text-accent mb-4" />
+              <p>Verifying clinical records...</p>
+            </div>
+          )}
+
+          {hasSearched && !isSearching && searchResult.length === 0 && (
+            <Card className="border-dashed border-2 bg-transparent">
+              <CardContent className="py-12 text-center">
+                <AlertCircle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-muted-foreground">No Record Found</h3>
+                <p className="text-muted-foreground mt-2">
+                  We couldn't find any results for "{searchInput}". Please double-check the ID or name with your medical team.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {hasSearched && !isSearching && searchResult.map(patient => (
+            <Card key={patient.id} className="border-none shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <CardHeader className="bg-primary/5 border-b">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary shadow-sm">
+                      <User size={20} />
                     </div>
                     <div>
-                      <h2 className="text-3xl font-bold">{result.firstName} {result.lastName}</h2>
-                      <p className="text-primary-foreground/70 font-code tracking-wider">ID: {result.patientIdCode}</p>
+                      <CardTitle className="text-xl">{patient.firstName} {patient.lastName}</CardTitle>
+                      <CardDescription>Patient ID: {patient.patientIdCode}</CardDescription>
                     </div>
                   </div>
-                  <Badge className="bg-white/20 text-white border-none px-6 py-2 text-sm uppercase tracking-widest">
-                    {(result as any).latestRiskLevel || 'No Prediction Yet'}
+                  <Badge variant={patient.latestRiskLevel === 'High' ? 'destructive' : 'outline'} className="px-4 py-1">
+                    {patient.latestRiskLevel || 'Pending Review'}
                   </Badge>
                 </div>
-              </div>
-              <CardContent className="p-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <RiskDisplay 
-                    label="ICU Transfer" 
-                    value={(result as any).latestIcuRisk || 0} 
-                    icon={<Activity className="text-blue-500" />}
+              </CardHeader>
+              <CardContent className="pt-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <ResultIndicator 
+                    label="ICU Transfer Risk" 
+                    value={patient.latestIcuRisk} 
+                    description="Likelihood of requiring critical care monitoring."
                   />
-                  <RiskDisplay 
-                    label="Cardiac Arrest" 
-                    value={(result as any).latestArrestRisk || 0} 
-                    icon={<Activity className="text-rose-500" />}
+                  <ResultIndicator 
+                    label="Cardiac Arrest Risk" 
+                    value={patient.latestArrestRisk} 
+                    description="Calculated risk of cardiovascular instability."
                   />
-                  <RiskDisplay 
+                  <ResultIndicator 
                     label="Mortality Risk" 
-                    value={(result as any).latestMortalityRisk || 0} 
-                    icon={<Activity className="text-slate-500" />}
+                    value={patient.latestMortalityRisk} 
+                    description="General physiological deterioration risk."
                   />
                 </div>
-
-                <div className="mt-12 p-6 rounded-2xl bg-muted/30 border border-dashed border-muted">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-full bg-primary/10 text-primary">
-                      <ShieldCheck size={24} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-lg mb-1">What does this mean?</h3>
-                      <p className="text-muted-foreground text-sm leading-relaxed">
-                        These scores are calculated using advanced clinical algorithms and historical data comparisons. 
-                        They represent a snapshot of the current physiological trajectory. 
-                        <strong> Always consult with your medical professional for definitive clinical decisions.</strong>
-                      </p>
-                    </div>
-                  </div>
+                
+                <div className="mt-8 p-4 rounded-xl bg-muted/30 border text-xs text-muted-foreground flex gap-3">
+                  <Activity size={16} className="shrink-0 text-accent" />
+                  <p>
+                    This is a public summary of your latest clinical assessment. Detailed medical rationale is restricted to authorized medical professionals. Please consult your physician for a full explanation of these results.
+                  </p>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
+          ))}
+        </div>
       </main>
-
-      <footer className="py-8 border-t bg-muted/20 text-center">
-        <p className="text-sm text-muted-foreground">
-          © 2026 HealthPredict AI Clinical Systems. Authorized Access Only.
-        </p>
-      </footer>
     </div>
   );
 }
 
-function RiskDisplay({ label, value, icon }: { label: string, value: number, icon: React.ReactNode }) {
-  const percentage = Math.round(value * 100);
+function ResultIndicator({ label, value, description }: { label: string, value: number | undefined, description: string }) {
+  const percentage = value !== undefined ? Math.round(value * 100) : 0;
+  const isPending = value === undefined;
+
   let colorClass = 'bg-emerald-500';
-  if (value > 0.7) colorClass = 'bg-rose-500';
-  else if (value > 0.4) colorClass = 'bg-amber-500';
+  if (percentage > 70) colorClass = 'bg-destructive';
+  else if (percentage > 40) colorClass = 'bg-amber-500';
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="font-semibold text-muted-foreground">{label}</span>
-        </div>
-        <span className="text-2xl font-bold text-primary">{percentage}%</span>
+    <div className="space-y-3">
+      <div className="flex justify-between items-end">
+        <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
+        <span className="text-2xl font-bold text-primary">{isPending ? '--' : `${percentage}%`}</span>
       </div>
-      <div className="h-3 w-full bg-muted rounded-full overflow-hidden shadow-inner">
+      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
         <div 
-          className={`h-full ${colorClass} transition-all duration-1000 ease-out`} 
-          style={{ width: `${percentage}%` }} 
+          className={`h-full ${colorClass} transition-all duration-1000`} 
+          style={{ width: `${isPending ? 0 : percentage}%` }} 
         />
       </div>
+      <p className="text-[10px] text-muted-foreground leading-tight">{description}</p>
     </div>
   );
+}
+
+function Label({ className, children }: { className?: string, children: React.ReactNode }) {
+  return <span className={`text-sm font-medium leading-none ${className}`}>{children}</span>;
 }
