@@ -75,7 +75,7 @@ export default function LandingPage() {
             HealthPredict AI
           </div>
           <p className="text-sm text-muted-foreground">
-            © 2024 Clinical AI Systems. For professional medical use only.
+            © 2026 Clinical AI Systems. For professional medical use only.
           </p>
         </div>
       </footer>

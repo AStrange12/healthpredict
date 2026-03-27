@@ -257,11 +257,11 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                      <VitalInput label="HR (bpm)" icon={<Heart size={16} />} value={hr} onChange={setHr} />
-                      <VitalInput label="SBP (mmHg)" icon={<Droplets size={16} />} value={sbp} onChange={setSbp} />
-                      <VitalInput label="DBP (mmHg)" icon={<Droplets size={16} />} value={dbp} onChange={setDbp} />
+                      <VitalInput label="Pulse (bpm)" icon={<Heart size={16} />} value={hr} onChange={setHr} />
+                      <VitalInput label="BP (mmHg)" icon={<Droplets size={16} />} value={sbp} onChange={setSbp} />
+                      <VitalInput label="BP (120/80)" icon={<Droplets size={16} />} value={dbp} onChange={setDbp} />
                       <VitalInput label="SpO2 (%)" icon={<Wind size={16} />} value={spo2} onChange={setSpo2} />
-                      <VitalInput label="RR (rpm)" icon={<Activity size={16} />} value={rr} onChange={setRr} />
+                      <VitalInput label="RR (breaths/min)" icon={<Activity size={16} />} value={rr} onChange={setRr} />
                       <VitalInput label="Temp (°C)" icon={<Thermometer size={16} />} value={temp} onChange={setTemp} />
                     </div>
                     <div className="space-y-2">
