@@ -1,6 +1,6 @@
-# HealthPredict AI - Clinical Deterioration Prediction System
+# HealthPredict AI - Multimodal Clinical Deterioration Prediction System
 
-An AI-powered clinical decision support system designed to predict patient deterioration (ICU transfer, cardiac arrest, and mortality) using multimodal data (vitals + clinical notes).
+An AI-powered clinical decision support system designed to predict patient deterioration (ICU transfer, cardiac arrest, and mortality) using **multimodal data** (numerical vitals + unstructured clinical notes).
 
 ## 🚀 Project Architecture
 
@@ -11,29 +11,29 @@ An AI-powered clinical decision support system designed to predict patient deter
 *   **Backend & Database**: Firebase (Auth, Firestore, App Hosting)
 *   **AI/ML Framework**: Firebase Genkit
 *   **Models**: 
-    *   **LLM**: Gemini 2.5 Flash (for clinical reasoning and explanations)
+    *   **LLM**: Gemini 2.5 Flash (for clinical reasoning and multimodal fusion)
     *   **ML**: Custom k-Nearest Neighbors (k-NN) for dataset-driven risk calculation
 
-### 2. System Components
-*   **Doctor Dashboard**: Central hub for managing patient rosters and clinical status.
-*   **Prediction Engine**: Dual-mode assessment (Experimental AI vs. Data-driven ML).
-*   **Explainable AI (XAI)**: Natural language generation of "Medical Rationale" to help doctors understand risk factors.
-*   **Real-time Vitals Monitoring**: Time-series logging and trend visualization using Recharts.
+### 2. Multimodal Nature: Why is it Multimodal?
+This system is classified as **Multimodal AI** because it performs "Late Fusion" of two distinct data types:
+1.  **Structured Numerical Modality**: Processes physiological vitals (HR, BP, SpO2, RR, Temp).
+2.  **Unstructured Textual Modality**: Processes free-text clinical notes and doctor observations.
+
+By analyzing both, the system can detect "hidden" deterioration where vitals might appear stable, but the patient's symptoms (captured in notes) indicate an upcoming event.
 
 ### 3. Data Flow
-1.  **Authentication**: Secure doctor access via Firebase Auth (Google/Email).
-2.  **Input**: Doctor logs physiological vitals (HR, BP, SpO2, RR, Temp) and clinical observations.
+1.  **Authentication**: Secure doctor access via Firebase Auth.
+2.  **Input**: Doctor logs physiological vitals and clinical observations.
 3.  **Inference**:
-    *   **ML**: Normalizes inputs and queries `mini_mimic_dataset.csv` for similarity-based risk scoring.
-    *   **AI**: Genkit Flow processes current state against medical knowledge using Gemini.
-4.  **Output**: Real-time risk levels (Low/Medium/High) with feature importance breakdowns and narrative insights.
+    *   **ML Path**: Normalizes inputs and queries `mini_mimic_dataset.csv` for similarity-based risk scoring.
+    *   **AI Path**: Genkit Flow processes current state against medical knowledge using Gemini, fusing text and numbers.
+4.  **Output**: Real-time risk levels (Low/Medium/High) with feature importance and narrative rationale.
 
 ## 🛠 Features
-*   **Multimodal Analysis**: Combines numerical vitals with free-text doctor notes.
-*   **Early Detection**: Predicts outcomes based on historical clinical patterns.
-*   **Data Persistence**: Full time-series history of patient vital signs.
-*   **Medical Weighting**: Risk logic prioritizes sensitive features like SpO2 and Respiratory Rate.
+*   **Explainable AI (XAI)**: Generates a "Medical Rationale" to help doctors understand *why* a specific risk level was assigned.
+*   **Medical Weighting**: Risk logic prioritizes sensitive features like SpO2 (35%) and Heart Rate (25%).
+*   **Real-time Trends**: Visualization of vitals over time using Recharts to identify downward trajectories.
 
 ## ⚖️ Security & Compliance
 *   **Data Isolation**: Firestore rules ensure doctor-patient data privacy.
-*   **Professional Use**: Designed for medical professionals as a decision-support tool.
+*   **Professional Use**: Designed as a decision-support tool for medical professionals.
