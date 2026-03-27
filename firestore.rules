@@ -1,70 +1,26 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * MULTIMODAL CLINICAL DETERIORATION PREDICTION SYSTEM - SECURITY ARCHITECTURE
-     * 
-     * Core Philosophy:
-     * This ruleset implements a robust, collaborative healthcare data model. It prioritizes HIPAA-compliant 
-     * patterns by ensuring that sensitive patient data is only accessible to authorized medical staff 
-     * (doctors/nurses) explicitly associated with a patient record.
-     * 
-     * Data Structure:
-     * - /users/{userId}: Private user profiles for medical professionals.
-     * - /patients/{patientId}: Central patient records using a "Shared Access" (Collaborative) model.
-     * - /patients/{patientId}/[subcollections]: Nested clinical data (vitals, notes, predictions).
-     * - /public_prediction_summaries: A restricted, read-only collection for public dashboarding.
-     * 
-     * Key Security Decisions:
-     * 1. Denormalization for Performance: To avoid costly 'get()' lookups in security rules, 
-     *    authorization data (patientMembers map and patientOwnerId) is denormalized from the 
-     *    parent Patient document into every child record (Vitals, Notes, Predictions).
-     * 2. Collaborative Access: Access to patient data is controlled via a 'members' map 
-     *    (UID -> Role) on the document, allowing for granular team-based permissions.
-     * 3. Public/Private Segregation: Sensitive clinical data is kept in the /patients tree, 
-     *    while non-sensitive summaries are mirrored to a top-level public collection for 
-     *    unauthenticated dashboard access.
-     * 4. Relational Integrity: On creation, documents must contain an internal ID or 
-     *    creator ID that matches the authentication context or the document path.
-     */
-
     // --- Helper Functions ---
-
-    /** @description Checks if the user is authenticated. */
     function isSignedIn() {
       return request.auth != null;
     }
-
-    /** @description Checks if the authenticated user matches a specific UID. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
-    /** @description Checks ownership and ensures the document exists for state changes. */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
-
-    /** @description Checks if the user's UID exists as a key in a membership map. */
     function isMember(membersMap) {
       return isSignedIn() && request.auth.uid in membersMap;
     }
-
-    /** @description Validates if a field in the incoming data is unchanged. */
     function isImmutable(fieldName) {
       return request.resource.data[fieldName] == resource.data[fieldName];
     }
 
-    // --- Collection Rules ---
-
-    /**
-     * @description Rules for User profiles. Users can only manage their own profile.
-     * @path /users/{userId}
-     * @allow (get, update) if UID in path matches auth.uid.
-     * @deny (create) if the internal 'id' field does not match the UID in the path.
-     * @principle Ownership-based access and self-creation validation.
-     */
+    // --- User Profiles ---
     match /users/{userId} {
       allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.id == userId;
@@ -72,78 +28,38 @@ service cloud.firestore {
       allow delete: if isExistingOwner(userId);
     }
 
-    /**
-     * @description Rules for Patient records. Access is shared among members in the 'members' map.
-     * @path /patients/{patientId}
-     * @allow (get) if user is the creator or listed in the members map.
-     * @deny (delete) if the user is not the original creator (addedByUserId).
-     * @principle Shared Access (Closed Collaborators) with Role-based constraints.
-     */
+    // --- Patient Records (Public Read for Search) ---
     match /patients/{patientId} {
-      allow get: if isSignedIn() && (isMember(resource.data.members) || resource.data.addedByUserId == request.auth.uid);
-      allow list: if isSignedIn();
+      // Allow public read for searching by ID/Name as requested for Public Portal
+      allow get, list: if true;
+      
       allow create: if isSignedIn() && request.resource.data.addedByUserId == request.auth.uid;
       allow update: if isSignedIn() && resource != null && (isMember(resource.data.members) || resource.data.addedByUserId == request.auth.uid);
       allow delete: if isSignedIn() && resource != null && resource.data.addedByUserId == request.auth.uid;
 
-      /**
-       * @description Rules for VitalsRecords. Uses denormalized auth fields for independence.
-       * @path /patients/{patientId}/vitalsRecords/{vitalsRecordId}
-       * @allow (get) if user is in 'patientMembers' map denormalized on the document.
-       * @deny (update) if the 'addedByUserId' or 'patientOwnerId' fields are modified.
-       * @principle Denormalization for Authorization Independence.
-       */
       match /vitalsRecords/{vitalsRecordId} {
-        allow get: if isSignedIn() && (isMember(resource.data.patientMembers) || resource.data.patientOwnerId == request.auth.uid);
-        allow list: if isSignedIn();
+        allow get, list: if true; // Public check for trends
         allow create: if isSignedIn() && request.resource.data.addedByUserId == request.auth.uid;
-        allow update: if isSignedIn() && resource != null && (isMember(resource.data.patientMembers) || resource.data.patientOwnerId == request.auth.uid) && isImmutable('addedByUserId') && isImmutable('patientOwnerId');
-        allow delete: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid || resource.data.patientOwnerId == request.auth.uid);
+        allow update, delete: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid || resource.data.patientOwnerId == request.auth.uid);
       }
 
-      /**
-       * @description Rules for ClinicalNotes. Access mirrors the patient's collaborative group.
-       * @path /patients/{patientId}/clinicalNotes/{clinicalNoteId}
-       * @allow (create) if the creator ID matches the authenticated user.
-       * @deny (list) if the user is not authenticated.
-       * @principle Authorization Independence and Auditability.
-       */
       match /clinicalNotes/{clinicalNoteId} {
-        allow get: if isSignedIn() && (isMember(resource.data.patientMembers) || resource.data.patientOwnerId == request.auth.uid);
-        allow list: if isSignedIn();
+        allow get, list: if isSignedIn(); // Keep notes private to medical staff
         allow create: if isSignedIn() && request.resource.data.addedByUserId == request.auth.uid;
-        allow update: if isSignedIn() && resource != null && (isMember(resource.data.patientMembers) || resource.data.patientOwnerId == request.auth.uid) && isImmutable('addedByUserId') && isImmutable('patientOwnerId');
-        allow delete: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid || resource.data.patientOwnerId == request.auth.uid);
+        allow update, delete: if isSignedIn() && resource != null && (resource.data.addedByUserId == request.auth.uid || resource.data.patientOwnerId == request.auth.uid);
       }
 
-      /**
-       * @description Rules for Predictions. Critical clinical data protected by denormalized members.
-       * @path /patients/{patientId}/predictions/{predictionId}
-       * @allow (get) if user is a doctor/nurse associated with this patient via 'patientMembers'.
-       * @deny (create) if triggeredByUserId is not the current user.
-       * @principle Relational Integrity and Secure Multi-user access.
-       */
       match /predictions/{predictionId} {
-        allow get: if isSignedIn() && (isMember(resource.data.patientMembers) || resource.data.patientOwnerId == request.auth.uid);
-        allow list: if isSignedIn();
+        allow get, list: if true; // Public check for results
         allow create: if isSignedIn() && request.resource.data.triggeredByUserId == request.auth.uid;
-        allow update: if isSignedIn() && resource != null && (isMember(resource.data.patientMembers) || resource.data.patientOwnerId == request.auth.uid) && isImmutable('triggeredByUserId');
-        allow delete: if isSignedIn() && resource != null && (resource.data.triggeredByUserId == request.auth.uid || resource.data.patientOwnerId == request.auth.uid);
+        allow update, delete: if isSignedIn() && resource != null && (resource.data.triggeredByUserId == request.auth.uid || resource.data.patientOwnerId == request.auth.uid);
       }
     }
 
-    /**
-     * @description Rules for Public Prediction Summaries. Publicly readable for dashboarding.
-     * @path /public_prediction_summaries/{publicPredictionSummaryId}
-     * @allow (get, list) for any user (public read).
-     * @deny (write) for unauthenticated users or those not owning the prediction record.
-     * @principle Public Read with Owner-Only Writes (Structural Segregation).
-     */
     match /public_prediction_summaries/{publicPredictionSummaryId} {
       allow get, list: if true;
       allow create: if isSignedIn() && request.resource.data.triggeredByUserId == request.auth.uid;
-      allow update: if isSignedIn() && resource != null && resource.data.triggeredByUserId == request.auth.uid && isImmutable('triggeredByUserId');
-      allow delete: if isSignedIn() && resource != null && resource.data.triggeredByUserId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource != null && resource.data.triggeredByUserId == request.auth.uid;
     }
   }
 }

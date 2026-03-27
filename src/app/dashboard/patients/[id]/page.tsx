@@ -55,7 +55,7 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
   const vitals = vitalsData || [];
   const predictions = predictionsData || [];
 
-  // Vitals Input State - Initialized to empty to be populated by latest record
+  // Vitals Input State
   const [hr, setHr] = useState('');
   const [sbp, setSbp] = useState('');
   const [dbp, setDbp] = useState('');
@@ -64,7 +64,6 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
   const [temp, setTemp] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Effect to populate form with latest patient data
   useEffect(() => {
     if (vitals.length > 0) {
       const latest = vitals[0];
@@ -139,6 +138,7 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
         ? await predictAIAssessment(input)
         : await predictPatientDeterioration(input);
 
+      // 1. Add detailed prediction to subcollection
       await addDoc(collection(db, 'patients', id, 'predictions'), {
         patientId: id,
         predictedAt: new Date().toISOString(),
@@ -153,6 +153,15 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
+
+      // 2. Mirror latest risk to parent patient doc for public dashboard accessibility
+      await setDoc(doc(db, 'patients', id), {
+        latestRiskLevel: result.riskLevel,
+        latestIcuRisk: result.icuTransferRisk,
+        latestArrestRisk: result.cardiacArrestRisk,
+        latestMortalityRisk: result.mortalityRisk,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
 
       toast({ 
         title: method === 'ai' ? "AI Assessment Complete" : "ML Model Prediction Complete", 
@@ -188,7 +197,6 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Patient Profile & Status */}
           <div className="lg:col-span-1 space-y-6">
             <Card className="border-none shadow-sm overflow-hidden">
               <CardHeader className="bg-primary text-white">
@@ -268,14 +276,10 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
                   {isPredicting === 'model' ? <Loader2 size={16} className="animate-spin" /> : <Database size={18} />}
                   Model Prediction (Data-driven)
                 </Button>
-                <p className="text-[10px] text-muted-foreground text-center mt-2 italic">
-                  Data-driven predictions use the MIMIC historical clinical dataset.
-                </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Column: Vitals Entry & History */}
           <div className="lg:col-span-2 space-y-6">
             <Tabs defaultValue="vitals" className="w-full">
               <TabsList className="grid w-full grid-cols-3 mb-6">
@@ -377,11 +381,6 @@ export default function PatientDetail({ params }: { params: Promise<{ id: string
                   <CardHeader>
                     <CardTitle className="flex justify-between items-center">
                       Rationale & Insights
-                      {latestPrediction && (
-                        <Badge variant="secondary" className="font-normal text-[10px] uppercase tracking-wider">
-                          {latestPrediction.predictionMethod === 'ai' ? 'Experimental AI' : 'Dataset-Driven Model'}
-                        </Badge>
-                      )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">

@@ -91,6 +91,10 @@
           "type": "string",
           "description": "The patient's last name."
         },
+        "name_lower": {
+          "type": "string",
+          "description": "Lowercase version of full name for case-insensitive search."
+        },
         "dateOfBirth": {
           "type": "string",
           "description": "The patient's date of birth.",
@@ -105,13 +109,25 @@
           "description": "The date and time of the patient's admission.",
           "format": "date-time"
         },
+        "latestRiskLevel": {
+          "type": "string",
+          "description": "The most recent predicted risk level (Low, Medium, High)."
+        },
+        "latestIcuRisk": {
+          "type": "number",
+          "description": "The most recent predicted ICU risk score."
+        },
+        "latestArrestRisk": {
+          "type": "number",
+          "description": "The most recent predicted Cardiac Arrest risk score."
+        },
+        "latestMortalityRisk": {
+          "type": "number",
+          "description": "The most recent predicted Mortality risk score."
+        },
         "preExistingConditions": {
           "type": "string",
           "description": "Comma-separated list of pre-existing conditions (e.g., Diabetes, Hypertension)."
-        },
-        "smokingStatus": {
-          "type": "string",
-          "description": "The patient's smoking status (e.g., 'Never', 'Former', 'Current')."
         },
         "addedByUserId": {
           "type": "string",

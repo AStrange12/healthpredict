@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, setDoc, addDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
@@ -81,11 +82,13 @@ export default function DoctorDashboard() {
       // 1. Create Patient Document
       const patientRef = doc(collection(db, 'patients'));
       const age = calculateAge(dob);
+      const fullName = `${firstName} ${lastName}`;
       const patientData = {
         id: patientRef.id,
         firstName,
         lastName,
-        name: `${firstName} ${lastName}`,
+        name: fullName,
+        name_lower: fullName.toLowerCase(),
         dateOfBirth: dob,
         age: age,
         gender,
